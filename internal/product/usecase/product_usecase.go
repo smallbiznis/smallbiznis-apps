@@ -258,18 +258,22 @@ func (uc *productUsecase) CreateProduct(ctx context.Context, req *productv1.Crea
 					if err := tx.Where(domain.OptionValue{
 						OptionID: exist.ID,
 						Value:    v.Value,
-					}).First(&optionValue).Error; err != nil {
+					}).First(optionValue).Error; err != nil {
+						if !errors.Is(err, gorm.ErrRecordNotFound) {
+							zap.L().With(fields...).Error("Failed to get option value", zap.Error(err))
+							return err
+						}
+
 						optionValueID := uc.snowflake.GenerateID()
 						optionValue = &domain.OptionValue{
 							ID:       optionValueID,
 							OptionID: exist.ID,
 							Value:    v.Value,
 						}
-						if errors.Is(err, gorm.ErrRecordNotFound) {
-							if err = tx.Create(&optionValue).Error; err != nil {
-								zap.L().With(fields...).Error("Failed to create option value", zap.Error(err))
-								return err
-							}
+
+						if err = tx.Create(optionValue).Error; err != nil {
+							zap.L().With(fields...).Error("Failed to create option value", zap.Error(err))
+							return err
 						}
 					}
 
