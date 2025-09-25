@@ -12,6 +12,7 @@ import (
 	"github.com/smallbiznis/smallbiznis-apps/pkg/config"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 )
 
 var NewServer = fx.Module("http.server",
@@ -31,6 +32,19 @@ type Params struct {
 	fx.In
 	Config  *config.Config
 	Handler *runtime.ServeMux
+}
+
+const (
+	OrgID = "X-ORG-ID"
+)
+
+func OrgIDAnnotator(ctx context.Context, req *http.Request) metadata.MD {
+	md := metadata.New(nil)
+	orgID := req.Header.Get(OrgID)
+	if orgID != "" {
+		md.Set(OrgID, orgID)
+	}
+	return md
 }
 
 func NewServeMux() *runtime.ServeMux {

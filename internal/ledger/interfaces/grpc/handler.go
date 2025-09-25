@@ -28,7 +28,7 @@ func NewHandler(p Params) *Handler {
 
 func (h *Handler) AddEntry(ctx context.Context, req *ledgerv1.AddEntryRequest) (*ledgerv1.LedgerEntry, error) {
 
-	if req.OrganizationId == "" {
+	if req.OrgId == "" {
 		return nil, status.Error(codes.InvalidArgument, "organizationId is required")
 	}
 

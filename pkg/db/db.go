@@ -34,7 +34,7 @@ func New(cfg *config.Config, dialector gorm.Dialector, opts ...gorm.Option) (*go
 		if err == nil {
 			break
 		}
-		log.Printf("Database not ready, retrying in 3 seconds... (%d/5)", i+1)
+		zap.L().Warn("Database not ready, retrying in 3 seconds... ", zap.Int("retry", i+1), zap.Error(err))
 		time.Sleep(3 * time.Second)
 	}
 

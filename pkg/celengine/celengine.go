@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/google/cel-go/cel"
-	pointv1 "github.com/smallbiznis/go-genproto/smallbiznis/loyalty/point/v1"
 )
 
 func BuildCelEnvFromAttributes(attrs map[string]interface{}) (*cel.Env, error) {
@@ -63,7 +62,7 @@ func BuildCelEnvFromAttributes(attrs map[string]interface{}) (*cel.Env, error) {
 	return env, nil
 }
 
-func StructToMap(s *pointv1.TransactionAttributes) map[string]interface{} {
+func StructToMap(s *interface{}) map[string]interface{} {
 	if s == nil {
 		return map[string]interface{}{}
 	}

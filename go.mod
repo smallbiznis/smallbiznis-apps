@@ -11,15 +11,17 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.2
 	github.com/google/cel-go v0.26.0
 	github.com/google/uuid v1.6.0
+	github.com/gosimple/slug v1.15.0
 	github.com/grafana/pyroscope-go v1.2.4
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1
 	github.com/hashicorp/consul/api v1.32.1
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/hibiken/asynq v0.25.1
+	github.com/lib/pq v1.10.9
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/redis/go-redis/v9 v9.12.1
-	github.com/smallbiznis/go-genproto v0.0.0-20250816132201-ce30aa1dfb55
+	github.com/smallbiznis/go-genproto v0.0.0-20250925145017-4bd931711446
 	github.com/spf13/viper v1.20.1
 	github.com/spf13/viper/remote v1.20.1
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.3.2
@@ -31,7 +33,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0
 	go.opentelemetry.io/otel/sdk/metric v1.37.0
 	go.opentelemetry.io/otel/trace v1.37.0
-	go.temporal.io/api v1.52.0
 	go.temporal.io/sdk v1.35.0
 	go.uber.org/fx v1.24.0
 	go.uber.org/mock v0.6.0
@@ -62,6 +63,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
+	github.com/bwmarrin/snowflake v0.3.0 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect
@@ -97,6 +99,7 @@ require (
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.8 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -169,6 +172,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect
 	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.0 // indirect
+	go.temporal.io/api v1.52.0 // indirect
 	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect

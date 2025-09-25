@@ -1,0 +1,67 @@
+
+APP_ENV: development
+APP_NAME: default
+
+APP_VERSION: v1.0.0
+APP_DOMAIN: localhost
+# APP_NAMESPACE: default # required on k8s
+
+HTTP_SERVER:
+  ADDR: 4318
+  READ_TIMEOUT: 30s
+  WRITE_TIMEOUT: 10s
+  IDLE_TIMEOUT: 10s
+  TLS:
+    ENABLE: false
+
+GRPC_SERVER:
+  ADDR: 4317
+  READ_TIMEOUT: 30s
+  WRITE_TIMEOUT: 10s
+  IDLE_TIMEOUT: 10s
+  TLS:
+    ENABLE: false
+
+HTTP_CLIENT:
+  DEBUG: false
+
+SECRET_AES:
+
+DATABASE:
+  TYPE: postgres
+  HOST: localhost
+  PORT: '5432'
+  USER: postgres
+  PASSWORD: 35411231
+  DBNAME: postgres
+  SSLMODE: disable # disable, enable
+  TIMEZONE: Asia/Jakarta # Local, Asia/Jakarta etc
+  CONNECTION_POOL:
+    MAX_IDLE_CONN: 10
+    MAX_OPEN_CONNS: 100
+    CONN_MAX_LIFETIME: 1h
+    CONN_MAX_IDLE_TIME: 1h
+
+SESSION:
+  NAME: _SID # default _SID
+  TYPE: cookie # cookie, redis
+  ADDR: localhost:6379
+  USERNAME: redis
+  PASSWORD: redis
+  SECRET: 
+
+ACCESS_CONTROL:
+  ADAPTER: file
+  MODEL: conf/model.conf
+  POLICY: 
+
+FLAGSMITH:
+  API_KEY: 
+
+MINIO:
+  ENDPOINT: localhost:8000
+  ACCESS_KEY: developmentkey
+  SECRET_KEY: developmentsecret
+  BUCKET_NAME: development
+  SECURE: false # true, false
+  REGION: us-east-1

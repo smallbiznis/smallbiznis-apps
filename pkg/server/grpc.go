@@ -26,13 +26,19 @@ func NewListener(cfg *config.Config) (net.Listener, error) {
 	return net.Listen("tcp", fmt.Sprintf(":%s", cfg.Grpc.Addr))
 }
 
-func WithOption(opts ...grpc.ServerOption) []grpc.ServerOption {
+func WithOption(tp trace.TracerProvider, mp metric.MeterProvider, opts ...grpc.ServerOption) []grpc.ServerOption {
 	return []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(
 			validator.UnaryServerInterceptor(validator.WithFailFast()),
 		),
 		grpc.ChainStreamInterceptor(
 			validator.StreamServerInterceptor(validator.WithFailFast()),
+		),
+		grpc.StatsHandler(
+			otelgrpc.NewServerHandler(
+				otelgrpc.WithTracerProvider(tp),
+				otelgrpc.WithMeterProvider(mp),
+			),
 		),
 	}
 }

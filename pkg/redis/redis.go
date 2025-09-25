@@ -2,10 +2,12 @@ package redis
 
 import (
 	"context"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/config"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 var Module = fx.Module("redis",
@@ -20,6 +22,16 @@ func New(lc fx.Lifecycle, c *config.Config) *redis.Client {
 		PoolSize:    c.Redis.PoolSize,
 		PoolTimeout: c.Redis.PoolTimeout,
 	})
+
+	for i := 0; i < 5; i++ {
+		_, err := rdb.Ping(context.Background()).Result()
+		if err != nil {
+			break
+		}
+
+		zap.L().Warn("Redis not ready, retrying in 3 seconds...", zap.Int("retry", i+1), zap.Error(err))
+		time.Sleep(3 * time.Second)
+	}
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {

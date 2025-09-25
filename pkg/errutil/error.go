@@ -33,14 +33,23 @@ func (e BaseError) URL() string {
 	return values.Encode()
 }
 
-func (e BaseError) JSON() gin.H {
-	return gin.H{
+func (e BaseError) JSON() interface{} {
+	msg := e.Message
+	if e.Err != nil {
+		msg = fmt.Sprintf("%s: %v", e.Message, e.Err)
+	}
+
+	return map[string]interface{}{
 		"error": gin.H{
-			"code":    e.Message,
-			"message": e.Err.Error(),
+			"code":    e.Code,
+			"message": msg,
 			"details": e.Details,
 		},
 	}
+}
+
+func (e BaseError) Unwrap() error {
+	return e.Err
 }
 
 func (e BaseError) Error() string {
@@ -50,67 +59,76 @@ func (e BaseError) Error() string {
 	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
 }
 
-func New(code CoreStatus, message string, err error, details ...Detail) error {
-	return BaseError{
-		Code:    code,
-		Message: message,
-		Details: details,
-		Err:     err,
+type Option func(*BaseError)
+
+func WithDetails(details ...Detail) Option {
+	return func(be *BaseError) { be.Details = details }
+}
+
+func WithErr(err error) Option {
+	return func(be *BaseError) { be.Err = err }
+}
+
+func New(code CoreStatus, message string, opts ...Option) error {
+	be := BaseError{Code: code, Message: message}
+	for _, opt := range opts {
+		opt(&be)
 	}
+	return be
 }
 
-func NotFound(msg string, err error, details ...Detail) error {
-	return New(StatusNotFound, msg, err, details...)
+func NotFound(msg string, err error, options ...Option) error {
+	return New(StatusNotFound, msg, options...)
 }
 
-func UnprocessableEntity(msg string, err error, details ...Detail) error {
-	return New(StatusUnprocessableEntity, msg, err, details...)
+func UnprocessableEntity(msg string, err error, options ...Option) error {
+	return New(StatusUnprocessableEntity, msg, options...)
 }
 
-func UnsupportedMediaType(msg string, err error, details ...Detail) error {
-	return New(StatusUnsupportedMediaType, msg, err, details...)
+func UnsupportedMediaType(msg string, err error, options ...Option) error {
+	return New(StatusUnsupportedMediaType, msg, options...)
 }
 
-func Conflict(msg string, err error, details ...Detail) error {
-	return New(StatusConflict, msg, err, details...)
+func Conflict(msg string, err error, options ...Option) error {
+	return New(StatusConflict, msg, options...)
 }
 
-func BadRequest(msg string, err error, details ...Detail) error {
-	return New(StatusBadRequest, msg, err, details...)
+func BadRequest(msg string, err error, options ...Option) error {
+	return New(StatusBadRequest, msg, options...)
 }
 
-func ValidationFailed(msg string, err error, details ...Detail) error {
-	return New(StatusValidationFailed, msg, err, details...)
+func ValidationFailed(msg string, err error, options ...Option) error {
+	return New(StatusValidationFailed, msg, options...)
 }
 
-func Internal(msg string, err error, details ...Detail) error {
-	return New(StatusInternal, msg, err, details...)
+func Internal(msg string, err error, options ...Option) error {
+	return New(StatusInternal, msg, options...)
 }
 
-func Timeout(msg string, err error, details ...Detail) error {
-	return New(StatusTimeout, msg, err, details...)
+func Timeout(msg string, err error, options ...Option) error {
+	return New(StatusTimeout, msg, options...)
 }
 
-func Unauthorized(msg string, err error, details ...Detail) error {
-	return New(StatusUnauthorized, msg, err, details...)
+func Unauthorized(msg string, err error, options ...Option) error {
+	return New(StatusUnauthorized, msg, options...)
 }
 
-func Forbidden(msg string, err error, details ...Detail) error {
-	return New(StatusForbidden, msg, err, details...)
+func Forbidden(msg string, err error, options ...Option) error {
+	return New(StatusForbidden, msg, options...)
 }
 
-func TooManyRequest(msg string, err error, details ...Detail) error {
-	return New(StatusTooManyRequests, msg, err, details...)
+func TooManyRequest(msg string, err error, options ...Option) error {
+	return New(StatusTooManyRequests, msg, options...)
 }
 
-func ClientClosedRequest(msg string, err error, details ...Detail) error {
-	return New(StatusClientClosedRequest, msg, err, details...)
+func ClientClosedRequest(msg string, err error, options ...Option) error {
+	return New(StatusClientClosedRequest, msg, options...)
 }
 
-func NotImplemented(msg string, err error, details ...Detail) error {
-	return New(StatusNotImplemented, msg, err, details...)
+func NotImplemented(msg string, err error, options ...Option) error {
+	return New(StatusNotImplemented, msg, options...)
 }
 
-func BadGateway(msg string, err error, details ...Detail) error {
-	return New(StatusBadGateway, msg, err, details...)
+func BadGateway(msg string, err error, options ...Option) error {
+	return New(StatusBadGateway, msg, options...)
 }

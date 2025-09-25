@@ -6,7 +6,6 @@ import (
 	"github.com/Flagsmith/flagsmith-go-client/v2"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/config"
 	"go.uber.org/fx"
-	"go.uber.org/zap"
 )
 
 var Module = fx.Module("featureflags", fx.Provide(ProvideFeatureFlag))
@@ -43,7 +42,6 @@ func ProvideFeatureFlag(p FeatureParams) FeatureFlag {
 func (s *featureflag) Features(ctx context.Context, identifier string) ([]flagsmith.Flag, error) {
 	flags, err := s.client.GetEnvironmentFlags()
 	if err != nil {
-		zap.L().Error("failed GetEnvironmentFlags", zap.Error(err))
 		return nil, err
 	}
 

@@ -1,4 +1,4 @@
-package grpc
+package grpc_handler
 
 import (
 	"context"
@@ -7,64 +7,87 @@ import (
 	"strings"
 
 	orgv1 "github.com/smallbiznis/go-genproto/smallbiznis/organization/v1"
-	"github.com/smallbiznis/smallbiznis-apps/internal/organization/domain"
 	"github.com/smallbiznis/smallbiznis-apps/internal/organization/usecase"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // OrganizationHandler implements orgv1.OrganizationServiceServer
 // This is a clean, repository-driven implementation scaffold ready for wiring with pgx/sqlc/GORM.
 type OrganizationHandler struct {
 	orgv1.UnimplementedOrganizationServiceServer
-	usecase usecase.IOrganizationUsecase
+	countryUsecase usecase.ICountry
+	orgUsecase     usecase.IOrganizationUsecase
 }
 
-func NewOrganizationHandler(
-	usecase usecase.IOrganizationUsecase,
+func NewOrganization(
+	countryUsecase usecase.ICountry,
+	orgUsecase usecase.IOrganizationUsecase,
 ) *OrganizationHandler {
 	return &OrganizationHandler{
-		usecase: usecase,
+		countryUsecase: countryUsecase,
+		orgUsecase:     orgUsecase,
 	}
 }
 
-func (h *OrganizationHandler) ListCountry(ctx context.Context) {}
+func (h *OrganizationHandler) ListCountry(ctx context.Context, req *orgv1.ListContryRequest) (*orgv1.ListCountryResponse, error) {
+	return h.countryUsecase.ListCountry(ctx, req)
+}
 
-func (h *OrganizationHandler) ListTimezone(ctx context.Context) {}
+func (h *OrganizationHandler) ListTimezone(ctx context.Context, req *orgv1.ListTimezoneRequest) (*orgv1.ListTimezoneResponse, error) {
+	return h.orgUsecase.ListTimezone(ctx, req)
+}
 
-func (h *OrganizationHandler) ListCurrency(ctx context.Context) {}
+func (h *OrganizationHandler) ListCurrency(ctx context.Context, req *orgv1.ListCurrencyRequest) (*orgv1.ListCurrencyResponse, error) {
+	return h.orgUsecase.ListCurrency(ctx, req)
+}
 
 func (h *OrganizationHandler) CreateOrganization(ctx context.Context, req *orgv1.CreateOrganizationRequest) (*orgv1.Organization, error) {
-	return h.usecase.CreateOrganization(ctx, req)
+
+	if req.Type == orgv1.OrganizationType_TYPE_UNSPECIFIED {
+		return nil, status.Error(codes.InvalidArgument, "type must be 'PERSONAL' or 'COMPANY'")
+	}
+
+	return h.orgUsecase.CreateOrganization(ctx, req)
 }
 
 func (h *OrganizationHandler) GetOrganization(ctx context.Context, req *orgv1.GetOrganizationRequest) (*orgv1.Organization, error) {
-	return h.usecase.GetOrganization(ctx, req)
+	return h.orgUsecase.GetOrganization(ctx, req)
 }
 
 func (h *OrganizationHandler) ListOrganization(ctx context.Context, req *orgv1.ListOrganizationRequest) (*orgv1.ListOrganizationResponse, error) {
-	return h.usecase.ListOrganization(ctx, req)
+	return h.orgUsecase.ListOrganization(ctx, req)
 }
 
 func (h *OrganizationHandler) UpdateOrganization(ctx context.Context, req *orgv1.UpdateOrganizationRequest) (*orgv1.Organization, error) {
-	return h.usecase.UpdateOrganization(ctx, req)
+	return h.orgUsecase.UpdateOrganization(ctx, req)
 }
 
-func toProtoOrg(o domain.Organization) *orgv1.Organization {
-	var trial *timestamppb.Timestamp
-	return &orgv1.Organization{
-		Id:          o.ID,
-		Slug:        o.Slug,
-		Name:        o.Name,
-		LogoUrl:     o.LogoURL,
-		TrialEndsAt: trial,
-		CreatedAt:   timestamppb.New(o.CreatedAt),
-		UpdatedAt:   timestamppb.New(o.UpdatedAt),
-	}
+func (h *OrganizationHandler) CreateInvitation(ctx context.Context, req *orgv1.CreateInvitationRequest) (*orgv1.CreateInvitationResponse, error) {
+	return h.orgUsecase.CreateInvitation(ctx, req)
+}
+
+func (h *OrganizationHandler) GetInvitation(ctx context.Context, req *orgv1.GetInvitationRequest) (*orgv1.Invitation, error) {
+	return h.orgUsecase.GetInvitation(ctx, req)
+}
+
+func (h *OrganizationHandler) VerifyInvitation(ctx context.Context, req *orgv1.VerifyInvitationRequest) (*orgv1.VerifyInvitationResponse, error) {
+	return h.orgUsecase.VerifyInvitation(ctx, req)
+}
+
+func (h *OrganizationHandler) CreateLocation(ctx context.Context, req *orgv1.CreateLocationRequest) (*orgv1.Location, error) {
+	return h.orgUsecase.CreateLocation(ctx, req)
+}
+
+func (h *OrganizationHandler) GetLocation(ctx context.Context, req *orgv1.GetLocationRequest) (*orgv1.Location, error) {
+	return h.orgUsecase.GetLocation(ctx, req)
+}
+
+func (h *OrganizationHandler) ListLocation(ctx context.Context, req *orgv1.ListLocationRequest) (*orgv1.ListLocationResponse, error) {
+	return h.orgUsecase.ListLocation(ctx, req)
 }
 
 func slugify(s string) string {
