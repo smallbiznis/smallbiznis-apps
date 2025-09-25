@@ -8,6 +8,7 @@ import (
 	"github.com/smallbiznis/smallbiznis-apps/internal/product/domain"
 	"github.com/smallbiznis/smallbiznis-apps/internal/product/usecase"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/db/pagination"
+	"github.com/smallbiznis/smallbiznis-apps/pkg/errutil"
 	"go.uber.org/fx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -33,7 +34,7 @@ func NewProductHandler(p Params) *ProductHandler {
 func (h *ProductHandler) CreateProduct(ctx context.Context, req *productv1.CreateProductRequest) (*productv1.Product, error) {
 	product, err := h.productUsecase.CreateProduct(ctx, req)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, errutil.ToGRPCError(err)
 	}
 
 	return product.ToProto(), nil
@@ -47,7 +48,7 @@ func (h *ProductHandler) GetProduct(ctx context.Context, req *productv1.GetProdu
 
 	product, err := h.productUsecase.GetProduct(ctx, productID.Int64())
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, errutil.ToGRPCError(err)
 	}
 
 	return &productv1.GetProductResponse{
@@ -59,7 +60,7 @@ func (h *ProductHandler) ListProducts(ctx context.Context, req *productv1.ListPr
 
 	orgID, err := snowflake.ParseString(req.OrgId)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	products, count, err := h.productUsecase.ListProduct(ctx, domain.Product{
@@ -68,7 +69,7 @@ func (h *ProductHandler) ListProducts(ctx context.Context, req *productv1.ListPr
 		Limit: int(req.Limit),
 	})
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, errutil.ToGRPCError(err)
 	}
 
 	return &productv1.ListProductsResponse{

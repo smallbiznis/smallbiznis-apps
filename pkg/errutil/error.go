@@ -20,6 +20,10 @@ type BaseError struct {
 	Err     error      `json:"-"`
 }
 
+func (e BaseError) Status() CoreStatus {
+	return e.Code
+}
+
 func (e BaseError) URL() string {
 	values := url.Values{}
 
@@ -34,15 +38,10 @@ func (e BaseError) URL() string {
 }
 
 func (e BaseError) JSON() interface{} {
-	msg := e.Message
-	if e.Err != nil {
-		msg = fmt.Sprintf("%s: %v", e.Message, e.Err)
-	}
-
 	return map[string]interface{}{
 		"error": gin.H{
 			"code":    e.Code,
-			"message": msg,
+			"message": e.messageWithErr(),
 			"details": e.Details,
 		},
 	}
@@ -54,9 +53,16 @@ func (e BaseError) Unwrap() error {
 
 func (e BaseError) Error() string {
 	if e.Err != nil {
-		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Err)
+		return fmt.Sprintf("[%s] %s", e.Code, e.messageWithErr())
 	}
 	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
+}
+
+func (e BaseError) messageWithErr() string {
+	if e.Err != nil {
+		return fmt.Sprintf("%s: %v", e.Message, e.Err)
+	}
+	return e.Message
 }
 
 type Option func(*BaseError)
