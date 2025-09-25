@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Detail struct {
@@ -39,7 +37,7 @@ func (e BaseError) URL() string {
 
 func (e BaseError) JSON() interface{} {
 	return map[string]interface{}{
-		"error": gin.H{
+		"error": map[string]interface{}{
 			"code":    e.Code,
 			"message": e.messageWithErr(),
 			"details": e.Details,
