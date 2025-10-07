@@ -21,7 +21,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/redis/go-redis/v9 v9.12.1
-	github.com/smallbiznis/go-genproto v0.0.0-20250925145017-4bd931711446
+	github.com/smallbiznis/go-genproto v0.0.0-20251007171717-1f52d2defee1
 	github.com/spf13/viper v1.20.1
 	github.com/spf13/viper/remote v1.20.1
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.3.2

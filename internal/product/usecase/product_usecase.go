@@ -78,61 +78,6 @@ func (uc *productUsecase) ListProduct(ctx context.Context, filter domain.Product
 		return nil, 0, status.Error(codes.Internal, err.Error())
 	}
 
-	// items := make([]*productv1.Product, 0)
-	// for _, it := range products {
-	// 	result := &productv1.Product{
-	// 		ProductId: it.ID,
-	// 		OrgId:     it.OrgID,
-	// 		Type:      productv1.ProductType(productv1.ProductType_value[it.Type]),
-	// 		Title:     it.Title,
-	// 		Slug:      it.Slug,
-	// 		BodyHtml:  it.BodyHTML,
-	// 		Status:    productv1.ProductStatus(productv1.ProductStatus_value[it.Status]),
-	// 		Options:   it.Options.ToProto(),
-	// 	}
-
-	// 	variants := make([]*productv1.Variant, 0)
-	// 	for _, v := range it.Variants {
-	// 		variant := productv1.Variant{
-	// 			VariantId: v.ID,
-	// 			ProductId: v.ProductID,
-	// 			Sku:       v.SKU,
-	// 			// Barcode:        v.Barcode,
-	// 			Title:          v.Title,
-	// 			Taxable:        v.Taxable,
-	// 			Price:          v.Price,
-	// 			CompareAtPrice: v.CompareAtPrice,
-	// 			Cost:           v.Cost,
-	// 			// Profit:         v.Profit,
-	// 			// Margin:         v.Margin,
-	// 			Weight:     v.Weight,
-	// 			WeightUnit: productv1.WeightUnit(productv1.WeightUnit_value[v.WeightUnit]),
-	// 			// Attributes:     v.Attributes,
-	// 		}
-
-	// 		// for _, id := range v.InventoryItemIds {
-	// 		// 	inv, err := svc.inventoryConn.GetInventory(ctx, &inventory.GetInventoryRequest{
-	// 		// 		InventoryItemId: id,
-	// 		// 	})
-	// 		// 	if err != nil {
-	// 		// 		zap.L().With(
-	// 		// 			zap.String("trace_id", traceID),
-	// 		// 			zap.String("span_id", spanID),
-	// 		// 			zap.Error(err),
-	// 		// 		).Error("Failed to get inventory item")
-	// 		// 		return nil, status.Error(codes.Internal, err.Error())
-	// 		// 	}
-
-	// 		// 	variant.Inventories = append(variant.Inventories, inv)
-	// 		// }
-
-	// 		variants = append(variants, &variant)
-	// 	}
-
-	// 	result.Variants = append(result.Variants, variants...)
-	// 	items = append(items, result)
-	// }
-
 	totalData, err := uc.productRepo.Count(ctx, &filter)
 	if err != nil {
 		return nil, 0, status.Error(codes.Internal, err.Error())
@@ -183,13 +128,12 @@ func (uc *productUsecase) CreateProduct(ctx context.Context, req *productv1.Crea
 		zap.String("span_id", spanID),
 	}
 
-	data := req.Product
-	orgID, err := snowflake.ParseString(data.OrgId)
+	orgID, err := snowflake.ParseString(req.OrgId)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid org id")
 	}
 
-	newSlug := slug.Make(data.Title)
+	newSlug := slug.Make(req.Title)
 	exist, err := uc.productRepo.FindOne(ctx, &domain.Product{
 		OrgID: orgID,
 		Slug:  newSlug,
@@ -208,18 +152,18 @@ func (uc *productUsecase) CreateProduct(ctx context.Context, req *productv1.Crea
 	newProduct := domain.Product{
 		ID:       productID,
 		OrgID:    orgID,
-		Type:     data.Type.String(),
+		Type:     req.Type.String(),
 		Slug:     newSlug,
-		Title:    data.Title,
-		BodyHTML: data.BodyHtml,
-		Status:   data.Status.String(),
+		Title:    req.Title,
+		BodyHTML: req.BodyHtml,
+		Status:   req.Status.String(),
 	}
 
 	if err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) (err error) {
 
-		if len(data.Options) > 0 {
+		if len(req.Options) > 0 {
 			// productOptions := make([]*domain.ProductOption, 0)
-			for i, o := range data.Options {
+			for i, o := range req.Options {
 
 				exist, err := uc.createOrUpdateOption(ctx, tx, domain.Option{
 					OrgID: orgID,
@@ -231,12 +175,14 @@ func (uc *productUsecase) CreateProduct(ctx context.Context, req *productv1.Crea
 				}
 
 				productOptionID := uc.snowflake.GenerateID()
-				productOption, err := domain.NewProductOption(domain.ProductOption{
-					ID:         productOptionID,
-					ProductID:  productID,
-					OptionName: exist.Name,
-					Position:   (i + 1),
-				})
+				productOption, err := domain.NewProductOption(
+					domain.ProductOption{
+						ID:         productOptionID,
+						ProductID:  productID,
+						OptionName: exist.Name,
+						Position:   (i + 1),
+					},
+				)
 				if err != nil {
 					return err
 				}
@@ -284,10 +230,10 @@ func (uc *productUsecase) CreateProduct(ctx context.Context, req *productv1.Crea
 			}
 		}
 
-		if len(data.Variants) > 0 {
+		if len(req.Variants) > 0 {
 
 			variants := make([]*domain.Variant, 0)
-			for _, variant := range data.Variants {
+			for _, variant := range req.Variants {
 				variantID := uc.snowflake.GenerateID()
 				newVariant, err := domain.NewVariant(domain.VariantParams{
 					ID:        variantID,
@@ -302,18 +248,20 @@ func (uc *productUsecase) CreateProduct(ctx context.Context, req *productv1.Crea
 				}
 
 				if len(variant.Prices) > 0 {
-					for _, price := range variant.Prices {
+					for _, v := range variant.Prices {
 						priceID := uc.snowflake.GenerateID()
-						newPrice := &domain.Price{
-							ID:        priceID,
-							VariantID: variantID,
-							Cost:      price.Cost,
-							Price:     price.Price,
-							CompareAt: price.CompareAtPrice,
-							Currency:  price.Currency,
-						}
+						price := domain.NewPrice(
+							domain.PriceParams{
+								ID:           priceID,
+								VariantID:    variantID,
+								CurrencyCode: v.CurrencyCode,
+								Cost:         v.Cost,
+								Price:        v.Price,
+								CompareAt:    v.CompareAtPrice,
+							},
+						)
 
-						newVariant.Prices = append(newVariant.Prices, newPrice)
+						newVariant.Prices = append(newVariant.Prices, price)
 					}
 				}
 				variants = append(variants, newVariant)

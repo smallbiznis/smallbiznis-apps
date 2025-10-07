@@ -28,12 +28,11 @@ func NewOrganization(
 	orgUsecase usecase.IOrganizationUsecase,
 ) *OrganizationHandler {
 	return &OrganizationHandler{
-		countryUsecase: countryUsecase,
-		orgUsecase:     orgUsecase,
+		orgUsecase: orgUsecase,
 	}
 }
 
-func (h *OrganizationHandler) ListCountry(ctx context.Context, req *orgv1.ListContryRequest) (*orgv1.ListCountryResponse, error) {
+func (h *OrganizationHandler) ListCountry(ctx context.Context, req *orgv1.ListCountriesRequest) (*orgv1.ListCountriesResponse, error) {
 	return h.countryUsecase.ListCountry(ctx, req)
 }
 

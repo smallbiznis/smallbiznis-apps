@@ -12,7 +12,7 @@ import (
 )
 
 type ICountry interface {
-	ListCountry(context.Context, *orgv1.ListContryRequest) (*orgv1.ListCountryResponse, error)
+	ListCountry(context.Context, *orgv1.ListCountriesRequest) (*orgv1.ListCountriesResponse, error)
 	GetCountry(ctx context.Context, code string) (*domain.Country, error)
 }
 
@@ -33,7 +33,7 @@ func NewCountry(p CountryParams) ICountry {
 	}
 }
 
-func (uc *country) ListCountry(ctx context.Context, req *orgv1.ListContryRequest) (*orgv1.ListCountryResponse, error) {
+func (uc *country) ListCountry(ctx context.Context, req *orgv1.ListCountriesRequest) (*orgv1.ListCountriesResponse, error) {
 
 	countries, err := uc.countryRepo.Find(ctx, &domain.Country{
 		Code: req.Code,
@@ -50,7 +50,7 @@ func (uc *country) ListCountry(ctx context.Context, req *orgv1.ListContryRequest
 		})
 	}
 
-	return &orgv1.ListCountryResponse{
+	return &orgv1.ListCountriesResponse{
 		Data: newCountries,
 	}, nil
 

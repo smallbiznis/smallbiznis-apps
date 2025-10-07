@@ -14,78 +14,78 @@ import (
 )
 
 type Balance struct {
-	ID             string    `gorm:"column:id"`
-	OrganizationID string    `gorm:"column:organization_id"`
-	UserID         string    `gorm:"column:user_id"`
-	Balance        int64     `gorm:"column:balance"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
-	UpdatedAt      time.Time `gorm:"column:updated_at"`
+	ID        string    `gorm:"column:id"`
+	OrgID     string    `gorm:"column:org_id"`
+	UserID    string    `gorm:"column:user_id"`
+	Balance   int64     `gorm:"column:balance"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
 type CreditPool struct {
-	ID             string    `gorm:"column:id"`
-	LedgerEntryID  string    `gorm:"column:ledger_entry_id"`
-	OrganizationID string    `gorm:"column:organization_id"`
-	UserID         string    `gorm:"column:user_id"`
-	Remaining      int64     `gorm:"column:remaining"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
+	ID            string    `gorm:"column:id"`
+	LedgerEntryID string    `gorm:"column:ledger_entry_id"`
+	OrgID         string    `gorm:"column:org_id"`
+	UserID        string    `gorm:"column:user_id"`
+	Remaining     int64     `gorm:"column:remaining"`
+	CreatedAt     time.Time `gorm:"column:created_at"`
 }
 
 type LedgerEntry struct {
-	ID             string         `gorm:"column:id"`
-	CreatedAt      time.Time      `gorm:"column:created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at"`
-	OrganizationID string         `gorm:"column:organization_id"`
-	UserID         string         `gorm:"column:user_id"`
-	Type           string         `gorm:"column:type"`
-	Amount         int64          `gorm:"column:amount"`
-	TransactionID  string         `gorm:"column:transaction_id"`
-	ReferenceID    string         `gorm:"column:reference_id"`
-	Description    string         `gorm:"column:description"`
-	PreviousHash   string         `gorm:"column:previous_hash"`
-	Hash           string         `gorm:"column:hash"`
-	Metadata       datatypes.JSON `gorm:"column:metadata"`
+	ID            string         `gorm:"column:id"`
+	CreatedAt     time.Time      `gorm:"column:created_at"`
+	UpdatedAt     time.Time      `gorm:"column:updated_at"`
+	OrgID         string         `gorm:"column:org_id"`
+	UserID        string         `gorm:"column:user_id"`
+	Type          string         `gorm:"column:type"`
+	Amount        int64          `gorm:"column:amount"`
+	TransactionID string         `gorm:"column:transaction_id"`
+	ReferenceID   string         `gorm:"column:reference_id"`
+	Description   string         `gorm:"column:description"`
+	PreviousHash  string         `gorm:"column:previous_hash"`
+	Hash          string         `gorm:"column:hash"`
+	Metadata      datatypes.JSON `gorm:"column:metadata"`
 }
 
 type LedgerParams struct {
-	OrganizationID string
-	UserID         string
-	Type           string
-	Amount         int64
-	ReferenceID    string
-	TransactionID  string
-	Description    string
-	PreviousHash   string
-	Metadata       datatypes.JSON
+	OrgID         string
+	UserID        string
+	Type          string
+	Amount        int64
+	ReferenceID   string
+	TransactionID string
+	Description   string
+	PreviousHash  string
+	Metadata      datatypes.JSON
 }
 
 func NewLedgerEntry(p LedgerParams) *LedgerEntry {
 	return &LedgerEntry{
-		ID:             uuid.NewString(),
-		OrganizationID: p.OrganizationID,
-		UserID:         p.UserID,
-		Type:           p.Type,
-		Amount:         p.Amount,
-		TransactionID:  p.TransactionID,
-		ReferenceID:    p.ReferenceID,
-		Description:    p.Description,
-		PreviousHash:   p.PreviousHash,
-		Metadata:       p.Metadata,
+		ID:            uuid.NewString(),
+		OrgID:         p.OrgID,
+		UserID:        p.UserID,
+		Type:          p.Type,
+		Amount:        p.Amount,
+		TransactionID: p.TransactionID,
+		ReferenceID:   p.ReferenceID,
+		Description:   p.Description,
+		PreviousHash:  p.PreviousHash,
+		Metadata:      p.Metadata,
 	}
 }
 
 func (m *LedgerEntry) HashFields() map[string]string {
 	return map[string]string{
-		"id":              m.ID,
-		"organization_id": m.OrganizationID,
-		"user_id":         m.UserID,
-		"type":            m.Type,
-		"amount":          fmt.Sprintf("%d", m.Amount),
-		"transaction_id":  m.TransactionID,
-		"reference_id":    m.ReferenceID,
-		"description":     m.Description,
-		"created_at":      m.CreatedAt.UTC().Format(time.RFC3339Nano),
-		"previous_hash":   m.PreviousHash,
+		"id":             m.ID,
+		"org_id":         m.OrgID,
+		"user_id":        m.UserID,
+		"type":           m.Type,
+		"amount":         fmt.Sprintf("%d", m.Amount),
+		"transaction_id": m.TransactionID,
+		"reference_id":   m.ReferenceID,
+		"description":    m.Description,
+		"created_at":     m.CreatedAt.UTC().Format(time.RFC3339Nano),
+		"previous_hash":  m.PreviousHash,
 	}
 }
 

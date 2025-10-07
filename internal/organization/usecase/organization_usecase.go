@@ -6,14 +6,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	orgv1 "github.com/smallbiznis/go-genproto/smallbiznis/organization/v1"
 	"github.com/smallbiznis/smallbiznis-apps/internal/organization/domain"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/db/option"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/db/pagination"
+	"github.com/smallbiznis/smallbiznis-apps/pkg/gen"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/repository"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -41,6 +45,7 @@ type IOrganizationUsecase interface {
 
 type organizationUsecase struct {
 	db             *gorm.DB
+	snowflake      *gen.SnowflakeNode
 	countryRepo    repository.Repository[domain.Country]
 	timezoneRepo   repository.Repository[domain.Timezone]
 	currencyRepo   repository.Repository[domain.Currency]
@@ -52,7 +57,8 @@ type organizationUsecase struct {
 
 type OrganizationParams struct {
 	fx.In
-	DB *gorm.DB
+	DB        *gorm.DB
+	Snowflake *gen.SnowflakeNode
 }
 
 func NewOrganization(
@@ -60,6 +66,7 @@ func NewOrganization(
 ) IOrganizationUsecase {
 	return &organizationUsecase{
 		db:             p.DB,
+		snowflake:      p.Snowflake,
 		countryRepo:    repository.ProvideStore[domain.Country](p.DB),
 		timezoneRepo:   repository.ProvideStore[domain.Timezone](p.DB),
 		currencyRepo:   repository.ProvideStore[domain.Currency](p.DB),
@@ -70,7 +77,7 @@ func NewOrganization(
 	}
 }
 
-func (uc *organizationUsecase) ListCountry(ctx context.Context, req *orgv1.ListContryRequest) (*orgv1.ListCountryResponse, error) {
+func (uc *organizationUsecase) ListCountry(ctx context.Context, req *orgv1.ListCountriesRequest) (*orgv1.ListCountriesResponse, error) {
 
 	countries, err := uc.countryRepo.Find(ctx, &domain.Country{
 		Code: req.Code,
@@ -87,7 +94,7 @@ func (uc *organizationUsecase) ListCountry(ctx context.Context, req *orgv1.ListC
 		})
 	}
 
-	return &orgv1.ListCountryResponse{
+	return &orgv1.ListCountriesResponse{
 		Data: newCountries,
 	}, nil
 
@@ -143,11 +150,23 @@ func (uc *organizationUsecase) ListCurrency(ctx context.Context, req *orgv1.List
 }
 
 func (uc *organizationUsecase) LookupOrganization(ctx context.Context, req *orgv1.LookupOrganizationRequest) (*orgv1.LookupOrganizationResponse, error) {
+	span := trace.SpanFromContext(ctx)
+	defer span.End()
+
+	traceID := span.SpanContext().TraceID().String()
+	spanID := span.SpanContext().SpanID().String()
+
+	fields := []zap.Field{
+		zap.String("trace_id", traceID),
+		zap.String("span_id", spanID),
+	}
+
 	name := slug.Make(req.Name)
 	exist, err := uc.orgRepo.FindOne(ctx, &domain.Organization{
 		Slug: name,
 	})
 	if err != nil {
+		zap.L().With(fields...).Error("failed lookup organization", zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -162,59 +181,76 @@ func (uc *organizationUsecase) LookupOrganization(ctx context.Context, req *orgv
 
 func (uc *organizationUsecase) CreateOrganization(ctx context.Context, req *orgv1.CreateOrganizationRequest) (*orgv1.Organization, error) {
 
-	countryExist, err := uc.countryRepo.FindOne(ctx, &domain.Country{Code: req.CountryCode})
+	span := trace.SpanFromContext(ctx)
+	defer span.End()
+
+	traceID := span.SpanContext().TraceID().String()
+	spanID := span.SpanContext().SpanID().String()
+
+	fields := []zap.Field{
+		zap.String("trace_id", traceID),
+		zap.String("span_id", spanID),
+	}
+
+	country, err := uc.countryRepo.FindOne(ctx, &domain.Country{Code: req.CountryCode})
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		zap.L().With(fields...).Error("failed get country by code", zap.Error(err))
+		return nil, err
 	}
 
-	if countryExist == nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid countryCode")
+	if country == nil {
+		return nil, fmt.Errorf("invalid countryCode")
 	}
 
-	name := slug.Make(
+	unqName := slug.Make(
 		strings.Trim(req.Name, " "),
 	)
 
-	exist, err := uc.orgRepo.FindOne(ctx, &domain.Organization{Slug: name})
+	exist, err := uc.orgRepo.FindOne(ctx, &domain.Organization{Slug: unqName})
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
 	if exist != nil {
-		return nil, status.Error(codes.InvalidArgument, "already exists")
+		return nil, fmt.Errorf("organization already exists")
 	}
 
-	newOrg := domain.NewOrganization()
-	newOrg.Type = req.Type.String()
-	newOrg.Name = req.Name
-	newOrg.Slug = name
-	orgCountry := domain.NewOrgCountry(req.CountryCode)
-	orgPlan := domain.NewOrgPlan(req.PlanId)
-
-	newOrg.Country = *orgCountry
-	newOrg.Plan = *orgPlan
+	orgID := uc.snowflake.GenerateID()
+	newOrg := domain.NewOrganization(
+		domain.OrganizationParams{
+			ID:          orgID,
+			Type:        req.Type.String(),
+			Name:        req.Name,
+			Slug:        unqName,
+			CountryCode: country.Code,
+			Status: domain.OrganizationStatus{
+				ID:     uuid.NewString(),
+				OrgID:  orgID,
+				Status: domain.Active,
+			},
+		},
+	)
 
 	if err := uc.orgRepo.Create(ctx, newOrg); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return uc.GetOrganization(ctx, &orgv1.GetOrganizationRequest{OrgId: newOrg.ID})
+	return uc.GetOrganization(ctx, &orgv1.GetOrganizationRequest{OrgId: orgID.String()})
 }
 
 func (uc *organizationUsecase) GetOrganization(ctx context.Context, req *orgv1.GetOrganizationRequest) (*orgv1.Organization, error) {
 
-	query := domain.Organization{ID: req.OrgId}
-	if _, err := uuid.Parse(req.OrgId); err != nil {
-		name := slug.Make(
-			strings.Trim(req.OrgId, " "),
-		)
+	query := domain.Organization{Slug: req.OrgId}
+	if orgID, err := snowflake.ParseString(req.OrgId); err == nil {
 		query = domain.Organization{
-			Slug: name,
+			ID: orgID,
 		}
 	}
 
 	opts := []option.QueryOption{
-		option.WithPreloads("Country", "Plan"),
+		option.WithPreloads("Status", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}),
 	}
 
 	exist, err := uc.orgRepo.FindOne(ctx, &query, opts...)
@@ -227,25 +263,24 @@ func (uc *organizationUsecase) GetOrganization(ctx context.Context, req *orgv1.G
 	}
 
 	return &orgv1.Organization{
-		OrgId:       exist.ID,
-		Type:        orgv1.OrganizationType(orgv1.OrganizationType_value[exist.Type]),
-		Slug:        exist.Slug,
-		Name:        exist.Name,
-		LogoUrl:     exist.LogoURL,
-		CountryCode: exist.Country.CountryCode,
-		PlanId:      orgv1.PlanType(orgv1.PlanType_value[exist.Plan.PlanID]),
-		CreatedAt:   timestamppb.New(exist.CreatedAt),
-		UpdatedAt:   timestamppb.New(exist.UpdatedAt),
+		OrgId:     exist.ID.String(),
+		Type:      orgv1.OrganizationType(orgv1.OrganizationType_value[exist.Type]),
+		Slug:      exist.Slug,
+		Name:      exist.Name,
+		Status:    orgv1.OrganizationState(orgv1.OrganizationState_value[string(exist.Status.Status)]),
+		CreatedAt: timestamppb.New(exist.CreatedAt),
+		UpdatedAt: timestamppb.New(exist.UpdatedAt),
 	}, nil
 }
 
 func (uc *organizationUsecase) ListOrganization(ctx context.Context, req *orgv1.ListOrganizationRequest) (*orgv1.ListOrganizationResponse, error) {
 
+	page := req.Page
 	opts := []option.QueryOption{
 		option.ApplyPagination(
 			pagination.Pagination{
-				Cursor: req.PageToken,
-				Limit:  int(req.PageSize),
+				Cursor: page.Cursor,
+				Limit:  int(page.Limit),
 			},
 		),
 		option.WithSortBy(option.QuerySortBy{
@@ -253,26 +288,22 @@ func (uc *organizationUsecase) ListOrganization(ctx context.Context, req *orgv1.
 				"created_at": true,
 			},
 		}),
-		option.WithPreloads("Country", "Plan"),
 	}
-	fmt.Printf("Pagination: %v\n", req.PageSize)
+
 	orgs, err := uc.orgRepo.Find(ctx, &domain.Organization{}, opts...)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
 	var newOrg []*orgv1.Organization
 	for _, v := range orgs {
 		newOrg = append(newOrg, &orgv1.Organization{
-			OrgId:       v.ID,
-			Type:        orgv1.OrganizationType(orgv1.OrganizationType_value[v.Type]),
-			Slug:        v.Slug,
-			Name:        v.Name,
-			LogoUrl:     v.LogoURL,
-			CountryCode: v.Country.CountryCode,
-			PlanId:      orgv1.PlanType(orgv1.PlanType_value[v.Plan.PlanID]),
-			CreatedAt:   timestamppb.New(v.CreatedAt),
-			UpdatedAt:   timestamppb.New(v.UpdatedAt),
+			OrgId:     v.ID.String(),
+			Type:      orgv1.OrganizationType(orgv1.OrganizationType_value[v.Type]),
+			Slug:      v.Slug,
+			Name:      v.Name,
+			CreatedAt: timestamppb.New(v.CreatedAt),
+			UpdatedAt: timestamppb.New(v.UpdatedAt),
 		})
 	}
 
@@ -287,13 +318,22 @@ func (uc *organizationUsecase) UpdateOrganization(ctx context.Context, req *orgv
 
 func (uc *organizationUsecase) CreateLocation(ctx context.Context, req *orgv1.CreateLocationRequest) (*orgv1.Location, error) {
 
-	newLocation := domain.NewLocation(req.OrgId)
-	newLocation.Name = req.Name
-	newLocation.Address = req.Address
-	newLocation.City = req.City
-	newLocation.ZipCode = req.ZipCode
-	newLocation.CountryCode = req.CountryCode
-	newLocation.Timezone = req.Timezone
+	orgID, err := snowflake.ParseString(req.OrgId)
+	if err != nil {
+		return nil, err
+	}
+
+	newLocation := domain.NewLocation(
+		domain.LocationParams{
+			OrgID:       orgID,
+			Name:        req.Name,
+			Address:     req.Address,
+			City:        req.City,
+			ZipCode:     req.ZipCode,
+			CountryCode: req.CountryCode,
+			Timezone:    req.Timezone,
+		},
+	)
 
 	if err := uc.locationRepo.Create(ctx, newLocation); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -317,12 +357,12 @@ func (uc *organizationUsecase) GetLocation(ctx context.Context, req *orgv1.GetLo
 	}
 
 	if exist == nil {
-		return nil, status.Error(codes.InvalidArgument, "location not found")
+		return nil, fmt.Errorf("invalid locationId")
 	}
 
 	return &orgv1.Location{
 		LocationId:  exist.ID,
-		OrgId:       exist.OrgID,
+		OrgId:       exist.OrgID.String(),
 		Name:        exist.Name,
 		Address:     exist.Address,
 		City:        exist.City,
@@ -334,8 +374,13 @@ func (uc *organizationUsecase) GetLocation(ctx context.Context, req *orgv1.GetLo
 
 func (uc *organizationUsecase) CreateInvitation(ctx context.Context, req *orgv1.CreateInvitationRequest) (*orgv1.CreateInvitationResponse, error) {
 
+	orgID, err := snowflake.ParseString(req.OrgId)
+	if err != nil {
+		return nil, err
+	}
+
 	memberExist, err := uc.memberRepo.FindOne(ctx, &domain.Member{
-		OrgID: req.OrgId,
+		OrgID: orgID,
 		Email: req.Email,
 	})
 	if err != nil {
@@ -357,7 +402,7 @@ func (uc *organizationUsecase) CreateInvitation(ctx context.Context, req *orgv1.
 		return nil, status.Error(codes.AlreadyExists, "invitation already exist")
 	}
 
-	newInvitation := domain.NewInvitation(req.OrgId, req.Email, req.Role)
+	newInvitation := domain.NewInvitation(orgID, req.Email, req.Role)
 	if err := uc.invitationRepo.Create(ctx, newInvitation); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -383,7 +428,13 @@ func (uc *organizationUsecase) VerifyInvitation(ctx context.Context, req *orgv1.
 
 	now := time.Now()
 	if !exist.ExpiryAt.Before(now) {
-		newMember := domain.NewMember(exist.OrgID, "", exist.Email, exist.Role)
+		newMember := domain.NewMember(
+			domain.MemberParams{
+				OrgID:  exist.OrgID,
+				UserID: "",
+				RoleID: exist.RoleID,
+			},
+		)
 		if err := uc.memberRepo.Create(ctx, newMember); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

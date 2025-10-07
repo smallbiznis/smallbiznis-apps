@@ -3,6 +3,7 @@ package domain
 import (
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/google/uuid"
 	orgv1 "github.com/smallbiznis/go-genproto/smallbiznis/organization/v1"
 	"gorm.io/gorm"
@@ -27,20 +28,60 @@ type Currency struct {
 }
 
 type Organization struct {
-	ID        string              `gorm:"column:id"`
-	CreatedAt time.Time           `gorm:"column:created_at"`
-	UpdatedAt time.Time           `gorm:"column:updated_at"`
-	Type      string              `gorm:"column:type"`
-	Name      string              `gorm:"column:name"`
-	Slug      string              `gorm:"column:slug"`
-	LogoURL   string              `gorm:"column:logo_url"`
-	Country   OrganizationCountry `gorm:"foreignKey:OrgID"`
-	Plan      OrganizationPlan    `gorm:"foreignKey:OrgID"`
+	ID          snowflake.ID       `gorm:"column:id"`
+	CreatedAt   time.Time          `gorm:"column:created_at"`
+	UpdatedAt   time.Time          `gorm:"column:updated_at"`
+	Type        string             `gorm:"column:type"`
+	Name        string             `gorm:"column:name"`
+	Slug        string             `gorm:"column:slug"`
+	CountryCode string             `gorm:"column:country_code"`
+	Status      OrganizationStatus `gorm:"foreignKey:OrgID"`
 }
 
-func NewOrganization() *Organization {
+type OrganizationParams struct {
+	ID          snowflake.ID
+	Type        string
+	Name        string
+	Slug        string
+	CountryCode string
+	Status      OrganizationStatus
+}
+
+func NewOrganization(p OrganizationParams) *Organization {
 	return &Organization{
-		ID: uuid.NewString(),
+		ID:          p.ID,
+		Type:        p.Type,
+		Name:        p.Name,
+		Slug:        p.Slug,
+		CountryCode: p.CountryCode,
+		Status:      p.Status,
+	}
+}
+
+type Status string
+
+var (
+	Active   Status = "ACTIVE"
+	Inactive Status = "INACTIVE"
+)
+
+type OrganizationStatus struct {
+	ID        string       `gorm:"column:id"`
+	OrgID     snowflake.ID `gorm:"column:org_id"`
+	Status    Status       `gorm:"column:status"`
+	CreatedAt time.Time    `gorm:"column:created_at"`
+}
+
+type OrganizationStatusParams struct {
+	OrgID  snowflake.ID
+	Status Status
+}
+
+func NewStatus(p OrganizationStatusParams) *OrganizationStatus {
+	return &OrganizationStatus{
+		ID:     uuid.NewString(),
+		OrgID:  p.OrgID,
+		Status: p.Status,
 	}
 }
 
@@ -79,9 +120,9 @@ type Invitation struct {
 	CreatedAt time.Time      `gorm:"column:created_at"`
 	UpdatedAt time.Time      `gorm:"column:updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
-	OrgID     string         `gorm:"column:org_id"`
+	OrgID     snowflake.ID   `gorm:"column:org_id"`
 	Email     string         `gorm:"column:email"`
-	Role      string         `gorm:"column:role"`
+	RoleID    string         `gorm:"column:role_id"`
 	Status    string         `gorm:"column:status"`
 	Token     string         `gorm:"column:token"`
 	AcceptAt  *time.Time     `gorm:"column:accept_at"`
@@ -89,51 +130,72 @@ type Invitation struct {
 	ExpiryAt  time.Time      `gorm:"column:expiry_at"`
 }
 
-func NewInvitation(orgID, email, role string) *Invitation {
+func NewInvitation(orgID snowflake.ID, email, role string) *Invitation {
 	return &Invitation{
 		ID:       uuid.NewString(),
 		OrgID:    orgID,
 		Email:    email,
-		Role:     role,
+		RoleID:   role,
 		Status:   orgv1.InvitationStatus_INVITATION_PENDING.String(),
 		ExpiryAt: time.Now().Add(24 * time.Hour),
 	}
 }
 
 type Member struct {
-	ID        string    `gorm:"column:id"`
-	CreatedAt time.Time `gorm:"column:created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at"`
-	OrgID     string    `gorm:"column:org_id"`
-	UserID    string    `gorm:"column:user_id"`
-	Email     string    `gorm:"column:email"`
-	Role      string    `gorm:"column:role"`
+	ID        string       `gorm:"column:id"`
+	CreatedAt time.Time    `gorm:"column:created_at"`
+	UpdatedAt time.Time    `gorm:"column:updated_at"`
+	OrgID     snowflake.ID `gorm:"column:org_id"`
+	UserID    string       `gorm:"column:user_id"`
+	Email     string       `gorm:"column:email"`
+	RoleID    string       `gorm:"column:role_id"`
 }
 
-func NewMember(OrgID, UserID, Email, Role string) *Member {
+type MemberParams struct {
+	OrgID  snowflake.ID
+	UserID string
+	RoleID string
+}
+
+func NewMember(p MemberParams) *Member {
 	return &Member{
 		ID:     uuid.NewString(),
-		OrgID:  OrgID,
-		UserID: UserID,
-		Email:  Email,
-		Role:   Role,
+		OrgID:  p.OrgID,
+		UserID: p.UserID,
+		RoleID: p.RoleID,
 	}
 }
 
 type Location struct {
-	ID          string `gorm:"column:id"`
-	OrgID       string `gorm:"column:org_id"`
-	Name        string `gorm:"column:name"`
-	Address     string `gorm:"column:address"`
-	City        string `gorm:"column:city"`
-	ZipCode     string `gorm:"column:zip_code"`
-	CountryCode string `gorm:"column:country_code"`
-	Timezone    string `gorm:"column:timezone"`
+	ID          string       `gorm:"column:id"`
+	OrgID       snowflake.ID `gorm:"column:org_id"`
+	Name        string       `gorm:"column:name"`
+	Address     string       `gorm:"column:address"`
+	City        string       `gorm:"column:city"`
+	ZipCode     string       `gorm:"column:zip_code"`
+	CountryCode string       `gorm:"column:country_code"`
+	Timezone    string       `gorm:"column:timezone"`
 }
 
-func NewLocation(orgId string) *Location {
+type LocationParams struct {
+	OrgID       snowflake.ID
+	Name        string
+	Address     string
+	City        string
+	ZipCode     string
+	CountryCode string
+	Timezone    string
+}
+
+func NewLocation(p LocationParams) *Location {
 	return &Location{
-		ID:    uuid.NewString(),
-		OrgID: orgId,
+		ID:          uuid.NewString(),
+		OrgID:       p.OrgID,
+		Name:        p.Name,
+		Address:     p.Address,
+		City:        p.City,
+		ZipCode:     p.ZipCode,
+		CountryCode: p.CountryCode,
+		Timezone:    p.Timezone,
 	}
 }

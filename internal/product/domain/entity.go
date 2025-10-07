@@ -64,7 +64,6 @@ type Product struct {
 func (m *Product) ToProto() *productv1.Product {
 	return &productv1.Product{
 		ProductId: m.ID.String(),
-		OrgId:     m.OrgID.String(),
 		Type:      productv1.ProductType(productv1.ProductType_value[m.Type]),
 		Title:     m.Title,
 		Slug:      m.Slug,
@@ -193,7 +192,7 @@ func NewVariant(p VariantParams) (*Variant, error) {
 
 func (m *Variant) ToProto() *productv1.Variant {
 	return &productv1.Variant{
-		VariantId: m.ID.String(),
+		Id:        m.ID.String(),
 		ProductId: m.ProductID.String(),
 		Sku:       m.SKU,
 		Title:     m.Title,
@@ -212,6 +211,15 @@ func (m Variants) ToProto() []*productv1.Variant {
 	return res
 }
 
+type VariantStock struct {
+	ID               snowflake.ID
+	VariantID        snowflake.ID
+	LocationID       snowflake.ID
+	OnHandQuantity   int
+	ReservedQuantity int
+	IncomingQuantity int
+}
+
 type Attribute struct {
 	ID        snowflake.ID `gorm:"column:id;primaryKey"`
 	VariantID snowflake.ID `gorm:"column:variant_id;not null"`
@@ -220,33 +228,33 @@ type Attribute struct {
 }
 
 type Price struct {
-	ID        snowflake.ID `gorm:"column:id;primaryKey"`
-	VariantID snowflake.ID `gorm:"column:variant_id;not null"`
-	Currency  string       `gorm:"column:currency"`
-	Price     float64      `gorm:"column:price;not null"`
-	CompareAt float64      `gorm:"column:compare_at_price;not null"`
-	Cost      float64      `gorm:"column:cost;not null"`
-	CreatedAt time.Time    `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt time.Time    `gorm:"column:updated_at;autoUpdateTime"`
+	ID           snowflake.ID `gorm:"column:id;primaryKey"`
+	VariantID    snowflake.ID `gorm:"column:variant_id;not null"`
+	CurrencyCode string       `gorm:"column:currency_code"`
+	Price        float64      `gorm:"column:price;not null"`
+	CompareAt    float64      `gorm:"column:compare_at_price;not null"`
+	Cost         float64      `gorm:"column:cost;not null"`
+	CreatedAt    time.Time    `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt    time.Time    `gorm:"column:updated_at;autoUpdateTime"`
 }
 
 type PriceParams struct {
-	ID        snowflake.ID
-	VariantID snowflake.ID
-	Currency  string
-	Price     float64
-	CompareAt float64
-	Cost      float64
+	ID           snowflake.ID
+	VariantID    snowflake.ID
+	CurrencyCode string
+	Price        float64
+	CompareAt    float64
+	Cost         float64
 }
 
 func NewPrice(p PriceParams) *Price {
 	return &Price{
-		ID:        p.ID,
-		VariantID: p.VariantID,
-		Currency:  p.Currency,
-		Price:     p.Price,
-		Cost:      p.Cost,
-		CompareAt: p.CompareAt,
+		ID:           p.ID,
+		VariantID:    p.VariantID,
+		CurrencyCode: p.CurrencyCode,
+		Price:        p.Price,
+		Cost:         p.Cost,
+		CompareAt:    p.CompareAt,
 	}
 }
 
@@ -254,7 +262,7 @@ func (m *Price) ToProto() *productv1.Price {
 	return &productv1.Price{
 		PriceId:        m.ID.String(),
 		VariantId:      m.VariantID.String(),
-		Currency:       m.Currency,
+		CurrencyCode:   m.CurrencyCode,
 		Price:          m.Price,
 		Cost:           m.Cost,
 		CompareAtPrice: m.CompareAt,

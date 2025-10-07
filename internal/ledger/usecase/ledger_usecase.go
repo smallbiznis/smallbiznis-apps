@@ -53,7 +53,7 @@ func (s *ledgerUsecase) GetBalance(ctx context.Context, req *ledgerv1.GetBalance
 		zap.String("span_id", spanID),
 	}
 
-	lastEntry, err := s.BalanceRepository.FindOne(ctx, &domain.Balance{OrganizationID: req.OrgId, UserID: req.UserId}, option.WithSortBy(option.QuerySortBy{OrderBy: "DESC"}))
+	lastEntry, err := s.BalanceRepository.FindOne(ctx, &domain.Balance{OrgID: req.OrgId, UserID: req.UserId}, option.WithSortBy(option.QuerySortBy{OrderBy: "DESC"}))
 	if err != nil {
 		zap.L().With(opts...).Error("failed to query FindOne entry", zap.Error(err))
 		return nil, err
@@ -83,8 +83,8 @@ func (s *ledgerUsecase) AddEntry(ctx context.Context, req *ledgerv1.AddEntryRequ
 	}
 
 	exist, err := s.LedgerRepository.FindOne(ctx, &domain.LedgerEntry{
-		OrganizationID: req.OrgId,
-		ReferenceID:    req.ReferenceId,
+		OrgID:       req.OrgId,
+		ReferenceID: req.ReferenceId,
 	})
 	if err != nil {
 		zap.L().With(opts...).Error("failed to query FindOne entry", zap.Error(err))
@@ -110,7 +110,7 @@ func (s *ledgerUsecase) AddEntry(ctx context.Context, req *ledgerv1.AddEntryRequ
 
 	return &ledgerv1.LedgerEntry{
 		Id:            entry.ID,
-		OrgId:         entry.OrganizationID,
+		OrgId:         entry.OrgID,
 		UserId:        entry.UserID,
 		Type:          ledgerv1.EntryType(ledgerv1.EntryType_value[entry.Type]),
 		Amount:        entry.Amount,
@@ -155,7 +155,7 @@ func (s *ledgerUsecase) ReverEntry(ctx context.Context, req *ledgerv1.RevertEntr
 
 	return &ledgerv1.LedgerEntry{
 		Id:            current.ID,
-		OrgId:         current.OrganizationID,
+		OrgId:         current.OrgID,
 		UserId:        current.UserID,
 		Type:          ledgerv1.EntryType(ledgerv1.EntryType_value[current.Type]),
 		Amount:        current.Amount,
@@ -167,8 +167,8 @@ func (s *ledgerUsecase) ReverEntry(ctx context.Context, req *ledgerv1.RevertEntr
 
 func (s *ledgerUsecase) getLastEntry(tx *gorm.DB, ctx context.Context, req *domain.LedgerEntry) (*domain.LedgerEntry, error) {
 	lastEntry, err := s.LedgerRepository.WithTrx(tx).FindOne(ctx, &domain.LedgerEntry{
-		OrganizationID: req.OrganizationID,
-		UserID:         req.UserID,
+		OrgID:  req.OrgID,
+		UserID: req.UserID,
 	}, option.WithSortBy(
 		option.QuerySortBy{
 			SortBy:  "created_at",
@@ -189,8 +189,8 @@ func (s *ledgerUsecase) processAddEntry(ctx context.Context, req *ledgerv1.AddEn
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 
 		lastEntry, err := s.getLastEntry(tx, ctx, &domain.LedgerEntry{
-			OrganizationID: req.OrgId,
-			UserID:         req.UserId,
+			OrgID:  req.OrgId,
+			UserID: req.UserId,
 		})
 		if err != nil {
 			return err
@@ -209,8 +209,8 @@ func (s *ledgerUsecase) processAddEntry(ctx context.Context, req *ledgerv1.AddEn
 func (s *ledgerUsecase) processDebit(ctx context.Context, tx *gorm.DB, lastEntry *domain.LedgerEntry, req *ledgerv1.AddEntryRequest) error {
 
 	entries, err := s.CreditPoolRepository.WithTrx(tx).Find(ctx, &domain.CreditPool{
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
+		OrgID:  req.OrgId,
+		UserID: req.UserId,
 	},
 		option.ApplyOperator(option.Condition{
 			Field:    "remaining",
@@ -243,8 +243,8 @@ func (s *ledgerUsecase) processDebit(ctx context.Context, tx *gorm.DB, lastEntry
 	}
 
 	balance, err := s.BalanceRepository.FindOne(ctx, &domain.Balance{
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
+		OrgID:  req.OrgId,
+		UserID: req.UserId,
 	},
 		option.WithLockingUpdate(),
 	)
@@ -301,15 +301,15 @@ func (s *ledgerUsecase) processDebit(ctx context.Context, tx *gorm.DB, lastEntry
 
 	b, _ := json.Marshal(meta)
 	entry := domain.NewLedgerEntry(domain.LedgerParams{
-		Type:           ledgerv1.EntryType_DEBIT.String(),
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
-		Amount:         req.Amount,
-		TransactionID:  transactionID,
-		ReferenceID:    req.ReferenceId,
-		Description:    req.Description,
-		PreviousHash:   lastEntry.Hash,
-		Metadata:       datatypes.JSON(b),
+		Type:          ledgerv1.EntryType_DEBIT.String(),
+		OrgID:         req.OrgId,
+		UserID:        req.UserId,
+		Amount:        req.Amount,
+		TransactionID: transactionID,
+		ReferenceID:   req.ReferenceId,
+		Description:   req.Description,
+		PreviousHash:  lastEntry.Hash,
+		Metadata:      datatypes.JSON(b),
 	})
 	entry.Hash = entry.GenerateHash()
 
@@ -346,8 +346,8 @@ func (s *ledgerUsecase) processCredit(ctx context.Context, tx *gorm.DB, lastEntr
 	)
 
 	balance, err := s.BalanceRepository.WithTrx(tx).FindOne(ctx, &domain.Balance{
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
+		OrgID:  req.OrgId,
+		UserID: req.UserId,
 	}, option.WithLockingUpdate())
 	if err != nil {
 		zap.L().Error("failed to query balance", zap.Error(err))
@@ -361,13 +361,13 @@ func (s *ledgerUsecase) processCredit(ctx context.Context, tx *gorm.DB, lastEntr
 	}
 
 	entry := domain.NewLedgerEntry(domain.LedgerParams{
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
-		Type:           req.Type.String(),
-		Amount:         req.Amount,
-		TransactionID:  transactionID,
-		ReferenceID:    req.ReferenceId,
-		Description:    req.Description,
+		OrgID:         req.OrgId,
+		UserID:        req.UserId,
+		Type:          req.Type.String(),
+		Amount:        req.Amount,
+		TransactionID: transactionID,
+		ReferenceID:   req.ReferenceId,
+		Description:   req.Description,
 	})
 
 	if lastEntry != nil {
@@ -384,12 +384,12 @@ func (s *ledgerUsecase) processCredit(ctx context.Context, tx *gorm.DB, lastEntr
 	}
 
 	if err := s.CreditPoolRepository.WithTrx(tx).Create(ctx, &domain.CreditPool{
-		ID:             uuid.NewString(),
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
-		LedgerEntryID:  entry.ID,
-		Remaining:      req.Amount,
-		CreatedAt:      time.Now(),
+		ID:            uuid.NewString(),
+		OrgID:         req.OrgId,
+		UserID:        req.UserId,
+		LedgerEntryID: entry.ID,
+		Remaining:     req.Amount,
+		CreatedAt:     time.Now(),
 	}); err != nil {
 		zap.L().Error("failed to create credit pools", zap.Error(err))
 		return err
@@ -397,12 +397,12 @@ func (s *ledgerUsecase) processCredit(ctx context.Context, tx *gorm.DB, lastEntr
 
 	if balance == nil {
 		if err := s.BalanceRepository.WithTrx(tx).Create(ctx, &domain.Balance{
-			ID:             uuid.NewString(),
-			OrganizationID: req.OrgId,
-			UserID:         req.UserId,
-			Balance:        entry.Amount,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
+			ID:        uuid.NewString(),
+			OrgID:     req.OrgId,
+			UserID:    req.UserId,
+			Balance:   entry.Amount,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
 		}); err != nil {
 			zap.L().Error("failed to create balance", zap.Error(err))
 			return err
@@ -423,8 +423,8 @@ func (s *ledgerUsecase) processCredit(ctx context.Context, tx *gorm.DB, lastEntr
 func (s *ledgerUsecase) processRevertCredit(ctx context.Context, tx *gorm.DB, lastEntry *domain.LedgerEntry) error {
 
 	balance, err := s.BalanceRepository.FindOne(ctx, &domain.Balance{
-		OrganizationID: lastEntry.OrganizationID,
-		UserID:         lastEntry.UserID,
+		OrgID:  lastEntry.OrgID,
+		UserID: lastEntry.UserID,
 	},
 		option.WithLockingUpdate(),
 	)
@@ -443,13 +443,13 @@ func (s *ledgerUsecase) processRevertCredit(ctx context.Context, tx *gorm.DB, la
 	}
 
 	entry := domain.NewLedgerEntry(domain.LedgerParams{
-		OrganizationID: lastEntry.OrganizationID,
-		UserID:         lastEntry.UserID,
-		Type:           lastEntry.Type,
-		Amount:         lastEntry.Amount,
-		TransactionID:  transactionID,
-		ReferenceID:    lastEntry.TransactionID,
-		Description:    fmt.Sprintf("Revert of %s", lastEntry.ID),
+		OrgID:         lastEntry.OrgID,
+		UserID:        lastEntry.UserID,
+		Type:          lastEntry.Type,
+		Amount:        lastEntry.Amount,
+		TransactionID: transactionID,
+		ReferenceID:   lastEntry.TransactionID,
+		Description:   fmt.Sprintf("Revert of %s", lastEntry.ID),
 	})
 
 	entry.PreviousHash = lastEntry.Hash
@@ -478,8 +478,8 @@ func (s *ledgerUsecase) ListEntries(ctx context.Context, req *ledgerv1.ListEntri
 	}
 
 	entries, err := s.LedgerRepository.Find(ctx, &domain.LedgerEntry{
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
+		OrgID:  req.OrgId,
+		UserID: req.UserId,
 	})
 	if err != nil {
 		zap.L().With(opts...).Error("failed to query list entries", zap.Error(err))
@@ -490,7 +490,7 @@ func (s *ledgerUsecase) ListEntries(ctx context.Context, req *ledgerv1.ListEntri
 	for _, entry := range entries {
 		newEntries = append(newEntries, &ledgerv1.LedgerEntry{
 			Id:            entry.ID,
-			OrgId:         entry.OrganizationID,
+			OrgId:         entry.OrgID,
 			UserId:        entry.UserID,
 			Type:          ledgerv1.EntryType(ledgerv1.EntryType_value[entry.Type]),
 			Amount:        entry.Amount,
@@ -527,7 +527,7 @@ func (s *ledgerUsecase) GetEntry(ctx context.Context, req *ledgerv1.GetEntryRequ
 
 	return &ledgerv1.LedgerEntry{
 		Id:            entry.ID,
-		OrgId:         entry.OrganizationID,
+		OrgId:         entry.OrgID,
 		UserId:        entry.UserID,
 		Type:          ledgerv1.EntryType(ledgerv1.EntryType_value[entry.Type]),
 		Amount:        entry.Amount,
@@ -550,8 +550,8 @@ func (s *ledgerUsecase) VerifyChain(ctx context.Context, req *ledgerv1.VerifyCha
 	}
 
 	entries, err := s.LedgerRepository.Find(ctx, &domain.LedgerEntry{
-		OrganizationID: req.OrgId,
-		UserID:         req.UserId,
+		OrgID:  req.OrgId,
+		UserID: req.UserId,
 	})
 	if err != nil {
 		zap.L().With(opts...).Error("failed to query Find entries", zap.Error(err))

@@ -9,6 +9,7 @@ import (
 	grpc_handler "github.com/smallbiznis/smallbiznis-apps/internal/organization/interfaces/grpc"
 	"github.com/smallbiznis/smallbiznis-apps/internal/organization/usecase"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/config"
+	"github.com/smallbiznis/smallbiznis-apps/pkg/gen"
 	"github.com/smallbiznis/smallbiznis-apps/pkg/server"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -37,7 +38,7 @@ func RegisterServiceHandlerFromEndpoint(lc fx.Lifecycle, mux *runtime.ServeMux, 
 	})
 }
 
-var Server = fx.Module("rulengine.service.server",
+var Server = fx.Module("organization.service",
 	fx.Provide(
 		server.NewListener,
 		server.WithOption,
@@ -50,6 +51,7 @@ var Server = fx.Module("rulengine.service.server",
 	),
 	fx.Provide(
 		grpc_handler.NewOrganization,
+		gen.NewSnowflakeNode,
 	),
 	fx.Invoke(
 		RegisterServiceServer,
